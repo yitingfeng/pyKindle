@@ -5,8 +5,9 @@ __all__ = ['parse', ]
 
 KINDLE_FIRST_LINE_NOISE = "\xef\xbb\xbf"
 KINDLE_DIVIDER = '='*10
-KINDLE_DATE_FORMAT = '%A, %B %d, %Y, %I:%M %p'
-LINE_BREAK = "\r\n"
+KINDLE_DATE_FORMAT = '%Y年%-m月星期* *午%H:%M:%P'
+# KINDLE_DATE_FORMAT = '%A, %B %d, %Y, %I:%M %p'
+LINE_BREAK = "\n"
 
 def filter_title(title_meta):
     return title_meta[:title_meta.rfind(' (')]
@@ -18,11 +19,23 @@ def filter_type(meta):
     return meta[2:meta.find(' Loc')]
 
 def filter_location(meta):
-    return meta[meta.find('Loc. ')+5:meta.find(' | ')]
+    location = meta[meta.find('位置 ')+5:meta.find('的标注')]
+    location = location.split("-")[0]
+    location = location.split("）")[0]
+    # print(location)
+    return location
 
 def filter_date(meta):
-    text_date = meta[meta.find('Added on ')+9:]
-    return datetime.datetime(*time.strptime(text_date, KINDLE_DATE_FORMAT)[:-2])
+    text_date = meta[meta.find('添加于 ')+4:]
+    # print(text_date)
+    year = text_date.split('年')[0]
+    month = text_date.split('年')[1].split('月')[0]
+    day = text_date.split('年')[1].split('月')[1].split('日')[0]
+    time = text_date.split('午')[1:8]
+    times = time[0].split(':')
+    # print(times)
+    # print(year, month, day, time)
+    return datetime.datetime(int(year), int(month), int(day), int(times[0]), int(times[1]), int(times[2]))
 
 def parse(filename,
           title_filter=filter_title,
@@ -30,8 +43,8 @@ def parse(filename,
           type_filter=filter_type,
           location_filter=filter_location,
           date_filter=filter_date):
-    fp = open(filename, 'rb')
-    contents = fp.read().lstrip(KINDLE_FIRST_LINE_NOISE)
+    fp = open(filename, mode='r')
+    contents = fp.read()
     fp.close()
 
     contents = contents.strip().rstrip(KINDLE_DIVIDER)
@@ -39,6 +52,7 @@ def parse(filename,
 
     ret = []
     for block in blocks:
+        # print(block)
         title_meta, meta, _empty_line, notes, _empty_line = block.lstrip().split(LINE_BREAK)
         title = title_filter(title_meta)
         author = author_filter(title_meta)
@@ -47,12 +61,12 @@ def parse(filename,
         date = date_filter(meta)
 
         ret.append({
-            "title": title,
-            "type": type,
-            "location": location,
-            "date": date,
-            "notes": notes.strip() if notes.strip() else None,
-            "author": author,
+            "Title": title,
+            # "type": type,
+            "Location": location,
+            "Date": date,
+            "Highlight": notes.strip() if notes.strip() else None,
+            "Author": author,
         })
     return ret
 
